@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import pkg_resources
 import csv
 import sys
@@ -19,8 +20,17 @@ def get_pkg_license(pkgname):
     """
     Get the License from the packages metadata, or None if can't find it.
     """
-    pkgs = pkg_resources.require(pkgname)
-    pkg = pkgs[0]
+    try:
+        pkgs = pkg_resources.require(pkgname)
+    except pkg_resources.RequirementParseError as e:
+        print('WARNING: RequirementParseError happened when getting license for requirements line: "%s"' % pkgname, file=sys.stderr)
+        return None
+    try:
+        pkg = pkgs[0]
+    except IndexError as e:
+        print('WARNING: could not get license for requirements line:  "%s"' % pkgname, file=sys.stderr)
+        return None
+
     metadata_name = 'METADATA'
     license = ''
     home_page = ''
@@ -37,13 +47,14 @@ def get_pkg_license(pkgname):
 
     return {"license": license, "home_page": home_page}
 
-csv_output = csv.writer(sys.stdout)
+csv_output = csv.writer(sys.stdout, delimiter='\t')
 csv_output.writerow(['Library', 'URL', 'License'])
 
 with open(requirements_file) as f:
     for line in f:
         name = line.split('==')[0]
         info = get_pkg_license(name)
-        csv_output.writerow([name, info['home_page'], info['license']])
+        if info:
+            csv_output.writerow([name, info['home_page'], info['license']])
 
 sys.exit(0)
